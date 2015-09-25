@@ -1,6 +1,6 @@
 function [ imdb ] = dbmaker( )
 
-global setting
+global msetting
 
 %% initialize imdb
 imdb.ifpath         = {};
@@ -10,7 +10,7 @@ imdb.ifpathopti     = {};
 imdb.ifpathdt       = {};
 imdb.ifset          = {};
 
-imdb.dividemethod   = setting.dividemethod;
+imdb.dividemethod   = msetting.dividemethod;
 
 imdb.label          = {};
 imdb.labelact       = {};
@@ -19,6 +19,9 @@ imdb.labelobj       = {};
 imdb.labelname      = {};
 imdb.labelnameact   = {};
 imdb.labelnameobj   = {};
+imdb.labeluniq      = {};
+imdb.labeluniqact   = {};
+imdb.labeluniqobj   = {};
 
 imdb.sequences      = {};
 imdb.seqlabel       = {};
@@ -32,37 +35,127 @@ imdb.unitseqlabelact= {};
 imdb.unitseqlabelobj= {};
 
 imdb.meanimage      = '';
-imdb.meanimagergb   = setting.meanRGBimpath;
-imdb.meanimageopti  = setting.meanOPimpath;
+imdb.meanimagergb   = msetting.meanRGBimpath;
+imdb.meanimageopti  = msetting.meanOPimpath;
 
 
 %% 
-imdb = load(setting.imdbpath);
+imdb = load(msetting.imdbpath);
 if length(imdb.ifpathrgb) ~= length(imdb.ifpathopti)
-    imdb.ifpathrgb = jpgfinder(setting.RGBimpath);
-    imdb.ifpathopti = jpgfinder(setting.ofimpath);
-    % imdb.ifpathdt = jpgfinder(setting.dtimpath);
+    imdb.ifpathrgb = jpgfinder(msetting.RGBimpath);
+    imdb.ifpathopti = jpgfinder(msetting.ofimpath);
+    % imdb.ifpathdt = jpgfinder(msetting.dtimpath);
     [imdb.ifpathrgb, imdb.ifpathopti] = matching(imdb.ifpathrgb, imdb.ifpathopti);
     % matching(imdb.ifpathrgb, imdb.ifpathdt , 'matchrgbdt');
 end
 
 if length(imdb.ifpathrgb) ~= length(imdb.labelnameact)
     fprintf('%d, %d',length(imdb.ifpathrgb),length(imdb.ifpathopti))
-    imdb = makelabelcad(imdb, setting.annotationpath, 'labeling.txt');
+    imdb = makelabelcad(imdb, msetting.annotationpath, 'labeling.txt');
 end
 
 if length(imdb.ifset) ~= length(imdb.ifpathrgb)
     imdb = dividetrainval(imdb);
 end
+%         imdb.sequences = {};
+%         imdb.seqlabelact = {};
+%         imdb.seqlabelobj = {};
+%         imdb.seqsets     = {};
+if isempty(imdb.sequences)
+    imdb = makesequences(imdb,msetting.sequencenum);
+end
 
-save( setting.imdbpath, '-struct', 'imdb') ;
+save( msetting.imdbpath, '-struct', 'imdb') ;
 
 end
 
+
+function [ imdb ] = makesequences(imdb, sequencenum)
+
+    curseq = [];
+    ind = 1;
+    prevlabel = imdb.labelact{ind};
+    spl = strsplit(imdb.ifpathrgb{ind},'/');
+    prevrep = spl{end-1};
+    
+    for ind = 1 : length(imdb.ifpathrgb)
+       
+        curlabel = imdb.labelact{ind};
+        spl = strsplit(imdb.ifpathrgb{ind},'/');
+        currep = spl{end-1};
+        
+        if (curlabel == prevlabel) && (strcmp(prevrep,currep))
+            curseq = [curseq, ind];
+        else
+            if length(curseq) < sequencenum
+                prevlabel = curlabel;
+                prevrep = currep;
+                curseq = [ind];
+            continue;
+            end
+            imdb.sequences{end+1} = curseq;
+            imdb.seqlabelact{end+1} = imdb.labelact{ind-1};
+            imdb.seqlabelobj{end+1} = imdb.labelobj{ind-1};
+            imdb.seqsets{end+1}     = imdb.ifset{ind-1};
+            prevlabel = curlabel;
+            prevrep = currep;
+            curseq = [ind];
+        end
+    end
+    if length(curseq) >= sequencenum
+        imdb.sequences{end+1} = curseq;
+        imdb.seqlabelact{end+1} = imdb.labelact{end};
+        imdb.seqlabelobj{end+1} = imdb.labelobj{end};
+        imdb.seqsets{end+1}     = imdb.ifset{end};
+    end
+
+%     for ind = 1 : length(imdb.ifpathrgb) - sequencenum + 1
+% 
+%         prevlabel = imdb.labelact{ind};
+%         spl = strsplit(imdb.ifpathrgb{ind},'/');
+%         prevrep = spl{end-1};
+%         
+%         issequence = true;
+%         
+%         for num = 1 : sequencenum - 1
+%             curlabel = imdb.labelact{ind+num};
+%             spl = strsplit(imdb.ifpathrgb{ind+num},'/');
+%             currep = spl{end-1};
+%             
+%             if (prevlabel ~= curlabel) || (~strcmp(prevrep,currep))
+%                 issequence = false;
+%                 break;
+%             end
+%         end
+%         
+%         if issequence
+%             seq = ind : (ind+sequencenum-1);
+%             imdb.sequences{end+1}   = seq;
+%             imdb.seqlabelact{end+1} = imdb.labelact{ind};
+%             imdb.seqlabelobj{end+1} = imdb.labelobj{ind};
+%             imdb.seqsets{end+1}     = imdb.ifset{ind};
+%         end
+%     end
+
+end
+
+
+function [ imdb ] = indexinglabel(imdb)
+    imdb.labeluniqact = unique(imdb.labelnameact);
+    imdb.labeluniqobj = unique(imdb.labelnameobj);
+    
+    for ind = 1 : length(imdb.labelnameact)
+        labact = find(strcmp(imdb.labelnameact{ind},imdb.labeluniqact));
+        labobj = find(strcmp(imdb.labelnameobj{ind},imdb.labeluniqobj));
+        imdb.labelact{ind} = labact;
+        imdb.labelobj{ind} = labobj;
+    end
+end
+
 function [ imdb ] = dividetrainval(imdb)
-global setting
-    imdb.dividemethod = setting.dividemethod;
-    if setting.dividemethod == 1
+global msetting
+    imdb.dividemethod = msetting.dividemethod;
+    if msetting.dividemethod == 1
        prevlabel = '';
        prevrep = '';
        prevset = 1;
@@ -76,12 +169,12 @@ global setting
            else
                prevlabel = curlabel;
                prevrep = currep;
-               prevset = (rand(1) > setting.trainingratio) + 1;
+               prevset = (rand(1) > msetting.trainingratio) + 1;
                imdb.ifset{ind} = prevset; 
            end
        end
         
-    elseif setting.dividemethod == 2
+    elseif msetting.dividemethod == 2
         for ind = 1 : length(imdb.ifpathrgb)
             spl = strsplit(imdb.ifpathrgb{ind},'/');
             subj = spl{end-3};
@@ -152,7 +245,7 @@ function [ imdb ] = makelabelcad(imdb, annopath, filename)
     end
     
     imdb = trimlabel(imdb);
-    
+    imdb = indexinglabel(imdb);
 %     labind = 1;
 %     ind = 1;
 %     while ind <= length(imdb.ifpathrgb) && labind <= length(labels)
