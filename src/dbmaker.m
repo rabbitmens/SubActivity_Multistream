@@ -33,6 +33,7 @@ imdb.unitsequence   = {};
 imdb.unitseqlabel   = {};
 imdb.unitseqlabelact= {};
 imdb.unitseqlabelobj= {};
+imdb.unitseqsets    = {};
 
 imdb.meanimage      = '';
 imdb.meanimagergb   = msetting.meanRGBimpath;
@@ -65,10 +66,45 @@ if isempty(imdb.sequences)
     imdb = makesequences(imdb,msetting.sequencenum);
 end
 
+if isempty(imdb.unitsequence)
+    imdb = makeunitsequences(imdb, msetting.sequencenum);
+end
+
 save( msetting.imdbpath, '-struct', 'imdb') ;
 
 end
 
+function [ imdb ] = makeunitsequences(imdb, sequencenum)
+
+    for ind = 1 : length(imdb.ifpathrgb) - sequencenum + 1
+
+        prevlabel = imdb.labelact{ind};
+        spl = strsplit(imdb.ifpathrgb{ind},'/');
+        prevrep = spl{end-1};
+        
+        issequence = true;
+        
+        for num = 1 : sequencenum - 1
+            curlabel = imdb.labelact{ind+num};
+            spl = strsplit(imdb.ifpathrgb{ind+num},'/');
+            currep = spl{end-1};
+            
+            if (prevlabel ~= curlabel) || (~strcmp(prevrep,currep))
+                issequence = false;
+                break;
+            end
+        end
+        
+        if issequence
+            seq = ind : (ind+sequencenum-1);
+            imdb.unitsequence{end+1}   = seq;
+            imdb.unitseqlabelact{end+1} = imdb.labelact{ind};
+            imdb.unitseqlabelobj{end+1} = imdb.labelobj{ind};
+            imdb.unitseqsets{end+1}     = imdb.ifset{ind};
+        end
+    end
+
+end
 
 function [ imdb ] = makesequences(imdb, sequencenum)
 

@@ -6,11 +6,12 @@ msetting.srcpath     = fullfile(msetting.currentpath,msetting.src);
 addpath(genpath(msetting.srcpath));
 
 %% training method
-msetting.trainingmethod  = 1; % 1 : a sequence per epoch, 2 : every sequences per epoch
+msetting.trainingmethod  = 2; % 1 : a sequence per epoch, 2 : every sequences per epoch
 msetting.sequencenum     = 10;
 msetting.continue        = true ;
 msetting.gpus            = [1] ;
-msetting.mergelayers     = false;
+msetting.mergelayers     = true;
+
 
 %% training result paths
 msetting.resultpath  = fullfile(msetting.currentpath,'res');
@@ -54,10 +55,10 @@ msetting.trainingratio = 0.8;
 %% mean image paths
 msetting.meanimage       = [];
 msetting.meanRGBimpath   = 'rgbavgimage.mat';
-msetting.meanOPimpath    = '';
+msetting.meanOPimpath    = 'optimeanim.mat';
 msetting.meanDTimpath    = '';
 msetting.meanDEPTHimpath = '';
-msetting.meanimpath      = msetting.meanRGBimpath;
+msetting.meanimpath      = msetting.meanOPimpath;
 
 %% image db path
 msetting.imdbname = 'imdb.mat';

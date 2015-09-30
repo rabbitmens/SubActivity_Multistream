@@ -52,7 +52,11 @@ if ~isempty(msetting.pretrainnetwork)
 else
     % vgg-m network
     opts.sequencenum = msetting.sequencenum;
-    opts.labelsize = length(imdb.labeluniq);
+    if mergelayer == true
+        opts.labelsize = length(imdb.labeluniqact) + length(imdb.labeluniqobj);
+    else
+        opts.labelsize = length(imdb.labeluniq);
+    end
     net.normalization.imageSize = [224, 224, 3] ;
     net = vgg_m(net, opts) ;
     
@@ -61,8 +65,11 @@ else
       case {'xavier', 'xavierimproved'}
         net.layers{end}.weights{1} = net.layers{end}.weights{1} / 10 ;
     end
+    
     net.layers{end+1} = struct('type', 'softmaxloss', 'name', 'loss') ;
-
+    if mergelayer == true
+        net = lastcustomlayer(net, length(imdb.labeluniqact),length(imdb.labeluniqobj));
+    end
     net.normalization.border = 256 - net.normalization.imageSize(1:2) ;
     net.normalization.interpolation = 'bicubic' ;
     net.normalization.averageImage = [] ;
