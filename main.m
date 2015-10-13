@@ -5,6 +5,7 @@ gpuDevice( 1 ); reset( gpuDevice ); clear ans;
 setpaths;
 % global msetting
 
+addpath(msetting.jsonpath);
 run(msetting.vlsetuppath);
 % addpath(msetting.matconvnetpath);
 % addpath(fullfile(msetting.matconvnetpath ,'matlab'));
@@ -14,7 +15,7 @@ opts.networkType = 'simplenn' ; % no dag yet. please use simplenn
 opts.batchNormalization = false ;
 opts.weightInitMethod = 'gaussian' ;
 % opts.expDir = msetting.resactrgbpath;
-opts.expDir = fullfile(msetting.resultpath,'OPmerge_rand_0.001_mean_trainall');
+opts.expDir = fullfile(msetting.resultpath,'OPmerge_rand_log_mean_trainall');
 [opts, varargin] = vl_argparse(opts, varargin) ;
 
 opts.sequencenum = msetting.sequencenum;
@@ -32,7 +33,8 @@ opts.train.expDir = opts.expDir ;
 if ~opts.batchNormalization
     
   %opts.train.learningRate = [0.01*ones(1, 35) 0.001*ones(1,100) 0.0001*ones(1,300)]*0.1;%logspace(-3, -5, 60) ;
-  opts.train.learningRate = [0.01*ones(1, 10) 0.001*ones(1,20) 0.0001*ones(1,30)]*0.1;%logspace(-3, -5, 60) ;
+%   opts.train.learningRate = [0.01*ones(1, 5) 0.001*ones(1,10) 0.0001*ones(1,15)]*0.1;%logspace(-3, -5, 60) ;
+  opts.train.learningRate = logspace(-3, -6, 40) ;
 else
   opts.train.learningRate = logspace(-1, -4, 20) ;
 end
@@ -70,45 +72,109 @@ elseif msetting.trainingmethod == 2
     opts.train.val = find(vallog);
 end
 % debugvideo(imdb)
-  
-net = initialize_network(imdb, 'model', opts.modelType, ...
-                        'batchNormalization', opts.batchNormalization, ...
-                        'weightInitMethod', opts.weightInitMethod, ...
-                        'labelsize', length(imdb.labeluniq));                    
-                    
-if ~isempty(msetting.meanimpath)
-    msetting.meanimage = load(msetting.meanimpath);
-    %msetting.meanimage = single(im2uint8(msetting.meanimage.avgim));
-    msetting.meanimage = single(msetting.meanimage.meanim);
-end
-if ~isempty(net.normalization.averageImage)
-    msetting.meanimage = net.normalization.averageImage;
-end
 
-net.normalization.averageImage = msetting.meanimage;
-bopts = net.normalization ;
-bopts.numThreads = opts.numFetchThreads ;
-bopts.sequencenum = opts.sequencenum;
 
-% from imagenet example
-switch lower(opts.networkType)
-  case 'simplenn'
-  case 'dagnn'
-    net = dagnn.DagNN.fromSimpleNN(net, 'canonicalNames', true) ;
-    net.addLayer('error', dagnn.Loss('loss', 'classerror'), ...
-                 {'prediction','label'}, 'top1error') ;
-  otherwise
-    error('Unknown netowrk type ''%s''.', opts.networkType) ;
-end
+if msetting.extractvector
+    
+    load(msetting.trainedpath);
+    
+    for i = 3 : -1 : 0, net.layers{end-i} = {};, end
+    net.layers = net.layers(~cellfun('isempty',net.layers));
+    
+    bopts = net.normalization ;
+    bopts.numThreads = opts.numFetchThreads ;
+    bopts.sequencenum = opts.sequencenum;
+    prevind = 0;
 
-if msetting.mergelayers
-    opts.train.errorFunction = 'merge';
+    % make prevpathname as 1
+    images = imdb.ifpath(imdb.unitsequence{1});
+    curpath = images{1};
+    spl = strsplit(curpath,'/');
+    prevsubname = spl{end-3};
+    prevpathname = spl{end-2};
+    
+    for ind = 1 : length(imdb.unitsequence)
+        images = imdb.ifpath(imdb.unitsequence{ind});
+        curpath = images{1};
+        spl = strsplit(curpath,'/');
+
+        if ~strcmp(prevpathname,spl{end-2})
+            
+            pathname = sprintf('%s,%s',prevsubname,prevpathname);
+            savejson(pathname,data2json,struct('FloatFormat','%.4f'),struct('FileName',sprintf('jsons/%s.json',pathname)));
+            prevpathname = spl{end-2};
+            prevsubname = spl{end-3};
+            prevind = ind-1;
+            data2json = {};
+        end
+        
+        im = get_batch_CAD120(images, bopts, ...
+            'imageSize', [224, 224], ...
+            'border' , [32,117]) ;
+        
+        res = '';
+        res = vl_simplenn(net, im, [], res, ...
+            'disableDropout', true, ...
+            'conserveMemory', false, ...
+            'sync', false, ...
+            'cudnn', true);
+        
+        ffl = res(end).x;
+        ffl = squeeze(ffl);
+        
+        
+        
+%         pathname = sprintf('%s,%s,%s,%s',spl{end-3},spl{end-2},spl{end-1},spl{end});
+        
+        data2json{ind-prevind}=struct('sub',spl{end-3},'act',spl{end-2},'rep',spl{end-1},'name',spl{end},...
+                            'labact',imdb.unitseqlabelact{ind},'labobj',imdb.unitseqlabelobj{ind},...
+                            'activ',ffl);
+        
+        
+    end
+    
 else
-    opts.train.errorFunction = 'multiclass';
-end
 
-fn = getBatchSimpleNNWrapper(bopts) ;
-[net,info] = cnn_train_CAD120(net, imdb, fn, opts.train, 'conserveMemory', true) ;
+    net = initialize_network(imdb, 'model', opts.modelType, ...
+                            'batchNormalization', opts.batchNormalization, ...
+                            'weightInitMethod', opts.weightInitMethod, ...
+                            'labelsize', length(imdb.labeluniq));                    
+
+    if ~isempty(msetting.meanimpath)
+        msetting.meanimage = load(msetting.meanimpath);
+        %msetting.meanimage = single(im2uint8(msetting.meanimage.avgim));
+        msetting.meanimage = single(msetting.meanimage.meanim);
+    end
+    if ~isempty(net.normalization.averageImage)
+        msetting.meanimage = net.normalization.averageImage;
+    end
+
+    net.normalization.averageImage = msetting.meanimage;
+    bopts = net.normalization ;
+    bopts.numThreads = opts.numFetchThreads ;
+    bopts.sequencenum = opts.sequencenum;
+
+    % from imagenet example
+    switch lower(opts.networkType)
+      case 'simplenn'
+      case 'dagnn'
+        net = dagnn.DagNN.fromSimpleNN(net, 'canonicalNames', true) ;
+        net.addLayer('error', dagnn.Loss('loss', 'classerror'), ...
+                     {'prediction','label'}, 'top1error') ;
+      otherwise
+        error('Unknown netowrk type ''%s''.', opts.networkType) ;
+    end
+
+    if msetting.mergelayers
+        opts.train.errorFunction = 'merge';
+    else
+        opts.train.errorFunction = 'multiclass';
+    end
+
+    fn = getBatchSimpleNNWrapper(bopts) ;
+    [net,info] = cnn_train_CAD120(net, imdb, fn, opts.train, 'conserveMemory', true) ;
+
+end
 
 end
 
