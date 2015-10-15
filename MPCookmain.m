@@ -15,14 +15,14 @@ opts.networkType = 'simplenn' ; % no dag yet. please use simplenn
 opts.batchNormalization = false ;
 opts.weightInitMethod = 'gaussian' ;
 % opts.expDir = msetting.resactrgbpath;
-opts.expDir = fullfile(msetting.resultpath,'RGB_rand_0.01_f5_mean_train');
+opts.expDir = fullfile(msetting.resultpath,'RGB_rand_0.01_f5_mean_train3_5');
 [opts, varargin] = vl_argparse(opts, varargin) ;
 
 opts.sequencenum = msetting.sequencenum;
 opts.numFetchThreads = 12 ;
 opts.lite = false ;
 opts.imdbPath = msetting.imdbpath;
-opts.train.batchSize = 125 ;
+opts.train.batchSize = 35 ;
 opts.train.numSubBatches = 1 ;
 opts.train.continue = msetting.continue;
 opts.train.gpus = msetting.gpus ;
@@ -32,7 +32,7 @@ opts.train.cudnn = true ;
 opts.train.expDir = opts.expDir ;
 if ~opts.batchNormalization
     
-  opts.train.learningRate = [0.01*ones(1, 50) 0.001*ones(1,70) 0.0001*ones(1,100)];%logspace(-3, -5, 60) ;
+  opts.train.learningRate = [0.01*ones(1, 5) 0.001*ones(1,15) 0.0001*ones(1,20)];%logspace(-3, -5, 60) 
 %   opts.train.learningRate = [0.01*ones(1, 5) 0.001*ones(1,10) 0.0001*ones(1,15)]*0.1;%logspace(-3, -5, 60) ;
 %   opts.train.learningRate = logspace(-3, -6, 40) ;
 else
@@ -68,6 +68,18 @@ elseif msetting.trainingmethod == 2
     vallog = cell2mat(annos.extset);
     vallog = (vallog == 2);
     opts.train.val = find(vallog);
+    
+elseif msetting.trainingmethod == 3
+    
+    % divide db into train and val
+    trainlog = cell2mat(annos.mulset);
+    trainlog = (trainlog == 1);
+    trainlog = find(trainlog);
+    opts.train.train = trainlog(randperm(length(trainlog)));
+    vallog = cell2mat(annos.mulset);
+    vallog = (vallog == 2);
+    opts.train.val = find(vallog);
+    
 end
 % debugvideo(imdb)
 
@@ -261,6 +273,67 @@ global msetting
             labels = single(find(annos.extactMat(batch,:)));
         end
         % to here   
+        
+    elseif msetting.trainingmethod == 3
+        for i = 1 : length(batch)
+            if annos.mulset{batch(i)} == 2
+                curnum = annos.mulfold(batch(i));
+                curstart = annos.mulvalstart(batch(i));
+                
+                foldpath = annos.imgfoldpath;
+                images = [];
+                for imind = 0 : opts.sequencenum-1
+                    images = [images;{sprintf('%s/%d/%d.jpg',foldpath,curnum,imind+curstart)}];
+                end
+                
+                imtemp = get_batch_MP(images, opts, ...
+                    'imageSize', [224, 224], ...
+                    'border' , [32,117],...
+                    'transformation', 'none') ;
+                im(:,:,:,i) = imtemp(:,:,:);
+                
+            else
+                curnum = annos.mulfold(batch(i));
+                curstart = annos.startFrame(curnum);
+                curend = annos.endFrame(curnum) - 1;
+
+                lenF = curend - curstart + 1;
+                if (lenF < opts.sequencenum)
+                    errid = fopen('errorlog.txt','a');
+                    fprintf(errid,'length below seqnum 10 at ind %d',curnum);
+                    fclose(errid);
+                end
+                currandnum = randi(lenF-opts.sequencenum + 1,1);
+
+                foldpath = annos.imgfoldpath;
+                images = [];
+                for imind = 0 : opts.sequencenum-1
+                    images = [images;{sprintf('%s/%d/%d.jpg',foldpath,curnum,currandnum+imind+curstart)}];
+                end
+
+                imtemp = get_batch_MP(images, opts, ...
+                    'imageSize', [224, 224], ...
+                    'border' , [32,117],...
+                    'transformation', msetting.transform) ;
+
+                im(:,:,:,i) = imtemp(:,:,:);
+            end
+        end
+
+        % from here, for custom layer -> softmax merge
+        if msetting.mergelayers
+            batch = annos.mulfold(batch);
+            
+            [i,j] = find(annos.actMat(batch,:));
+            [~,ord] = sort(i);
+            
+            labelact = single(j(ord));
+            labelobj = annos.objMat(batch,:);
+            labels = cat(2,labelact,labelobj);
+        else
+            batch = annos.mulfold(batch);
+            labels = single(find(annos.actMat(batch,:)));
+        end
     end
     
     if 0 %%debug

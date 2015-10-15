@@ -82,10 +82,51 @@ if ~isfield(annos,'extset')
     annos = extendsequences(annos,msetting.sequencenum);
 end
 
+if ~isfield(annos,'mulset')
+    annos = multiplysequences(annos,msetting.sequencenum,msetting.multiply);
+end
+
 save( msetting.imdbpath, '-struct', 'annos') ;
 
 end
+function annos = multiplysequences(annos,sequencenum,multiply)
 
+    annos.mulset = {};
+    annos.mulfold = [];
+    annos.mulvalstart = [];
+    
+    for ind = 1 : length(annos.set)
+        if rem(ind,100)==0
+            fprintf('multiple sequences, now %d / %d\n',ind,length(annos.startFrame));
+        end
+        
+        if annos.set{ind} == 0
+            continue;
+        end
+        
+        flen = (annos.endFrame(ind)-annos.startFrame(ind));
+        
+        if annos.set{ind} == 1
+            mullen = flen/sequencenum;
+            if mullen > multiply, mullen = multiply;, end
+            
+            for i = 1 : mullen
+                annos.mulset{end+1} = 1;
+                annos.mulfold(end+1) = ind;
+            end
+            
+        elseif annos.set{ind} == 2
+            flen = flen + 1 - sequencenum + 1;
+            for i = 1 : flen
+                annos.mulset{end+1} = 2;
+                annos.mulfold(end+1) = ind;
+                annos.mulvalstart(length(annos.mulset)) = i+annos.startFrame(ind)-1;
+            end
+        end
+        
+    end
+
+end
 function annos = extendsequences(annos,sequencenum)
 
     annos.extstartFrame = [];
@@ -95,7 +136,7 @@ function annos = extendsequences(annos,sequencenum)
     annos.extset = {};
     annos.extfold = [];
     
-    multiple = 10;
+    multiple = msetting.multiply;
     
     for ind = 1 : length(annos.startFrame)
         if rem(ind,100)==0

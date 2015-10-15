@@ -6,13 +6,15 @@ msetting.srcpath     = fullfile(msetting.currentpath,msetting.src);
 addpath(genpath(msetting.srcpath));
 
 %% training method
-msetting.trainingmethod  = 2; % 1 : a sequence per epoch, 2 : every sequences per epoch % at MP DB, not all, but make it much more
+msetting.trainingmethod  = 3; % 1 : a sequence per epoch, 2 : every sequences per epoch % at MP DB, not all, but make it much more
+                                % 3 : multiply sequences per epoch
+msetting.multiply        = 10;
 msetting.sequencenum     = 10;
 msetting.continue        = true ;
 msetting.gpus            = [1] ;
 msetting.mergelayers     = true; % false, will train act only
 msetting.trainedpath     = 'resMP/RGB_rand_0.01_f5_mean/net-epoch-78.mat';
-msetting.extractvector   = true;
+msetting.extractvector   = false;
 msetting.transform       = 'f5';
 
 %% training result paths
