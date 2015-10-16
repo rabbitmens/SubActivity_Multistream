@@ -48,7 +48,7 @@ msetting.jsonpath        = fullfile(msetting.currentpath,'lib/jsonlab');
 
 %% image paths
 msetting.DBname = 'MPII-Cooking-2';
-msetting.RGBimpath = '/media/disk1/bgsim/Dataset/MP2Cooking/images';
+msetting.RGBimpath = '/home/rcvbong/MPimages/images';
 msetting.dtimpath = '';%'/media/disk1/bgsim/action/dataset/dtim256';
 msetting.ofimpath = '/media/disk1/bgsim/Dataset/MP2Cooking/Optical';
 

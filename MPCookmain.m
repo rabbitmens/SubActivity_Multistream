@@ -15,7 +15,7 @@ opts.networkType = 'simplenn' ; % no dag yet. please use simplenn
 opts.batchNormalization = false ;
 opts.weightInitMethod = 'gaussian' ;
 % opts.expDir = msetting.resactrgbpath;
-opts.expDir = fullfile(msetting.resultpath,'RGB_rand_0.01_f5_mean_train3_5');
+opts.expDir = fullfile(msetting.resultpath,'RGB_rand_0.01_f5_mean_train3_re');
 [opts, varargin] = vl_argparse(opts, varargin) ;
 
 opts.sequencenum = msetting.sequencenum;
@@ -32,7 +32,7 @@ opts.train.cudnn = true ;
 opts.train.expDir = opts.expDir ;
 if ~opts.batchNormalization
     
-  opts.train.learningRate = [0.01*ones(1, 5) 0.001*ones(1,15) 0.0001*ones(1,20)];%logspace(-3, -5, 60) 
+  opts.train.learningRate = [0.01*ones(1, 25) 0.001*ones(1,25) 0.0001*ones(1,20)];%logspace(-3, -5, 60) 
 %   opts.train.learningRate = [0.01*ones(1, 5) 0.001*ones(1,10) 0.0001*ones(1,15)]*0.1;%logspace(-3, -5, 60) ;
 %   opts.train.learningRate = logspace(-3, -6, 40) ;
 else

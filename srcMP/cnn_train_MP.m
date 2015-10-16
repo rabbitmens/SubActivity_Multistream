@@ -97,7 +97,7 @@ if isstr(opts.errorFunction)
   switch opts.errorFunction
     case 'mergeMP'
       opts.errorFunction = @error_mergeclassMP;
-      if isempty(opts.errorLabels), opts.errorLabels = {'act1e','act5e', 'objap', 'obj10e'}; end %, 'top5e'} ; end
+      if isempty(opts.errorLabels), opts.errorLabels = {'act1e', 'objap', 'obj10e'}; end %, 'top5e'} ; end
     case 'merge'
       opts.errorFunction = @error_mergeclass;
       if isempty(opts.errorLabels), opts.errorLabels = {'top1e', 'top5e'}; end %, 'top5e'} ; end
@@ -155,6 +155,7 @@ for epoch=start+1:opts.numEpochs
     info.(f).objective(epoch) = stats.(f)(2) / n ;
     info.(f).error(:,epoch) = stats.(f)(3:end) / n ;
   end
+  info.learningrate(epoch) = learningRate;
   if ~evaluateMode, save(modelPath(epoch), 'net', 'info') ; end
 
   figure(1) ; clf ;
@@ -200,39 +201,55 @@ pred2 = predictions(:,:,68:end,:);
 actlabel = labels(:,1);
 error = ~bsxfun(@eq, squeeze(pred1(:,:,1:5,:)), actlabel');
 err(1,1) = sum(error(1,:)); % action error
-t5error = min(error(:,:),[],1);
-err(2,1) = sum(t5error);
+% t5error = min(error(:,:),[],1);
+% err(2,1) = sum(t5error);
 
 objlabel = labels(:,2:end);
 pred2 = squeeze(pred2);
 
 % 1st -> true false by bigger one. 
 odd = 1 : 2 : 310;
-even = 2 : 2 : 310;
+% even = 2 : 2 : 310;
 spltrue = pred2(odd,:);
-splfalse = pred2(even,:);
+% splfalse = pred2(even,:);
 
-splcomp = (spltrue>splfalse);
-splcomp = splcomp+0;
-precsum = sum(splcomp,1);
-splcomp(find(splcomp==0)) = 2;
+[~,spltruesort] = sort(spltrue, 1, 'descend') ; % 
 
-[i,j] = find(uint8(splcomp)==uint8(objlabel')); % i <= 155, j <= 35
-% error2 = (numel(objlabel)-length(correct)) / numel(objlabel) * size(objlabel,1);
-error2 = 0;
-for ind = 1 : size(objlabel,1)
-    tp = find(j==ind);
-    if precsum(ind) == 0
-        error2 = error2 + 1;
-        continue;
+totprec = 0;
+for bi = 1 : size(spltruesort,2)
+    scoresort = spltruesort(:,bi);
+    oblabel = objlabel(bi,:)';
+    sortoblab = oblabel(scoresort);
+    totrec = sum(oblabel);
+    idxsort = find(sortoblab);
+    prec = 0;
+    for reci = 1 : length(idxsort)
+        prec = prec + reci/idxsort(reci);
     end
-    prec = length(tp)/precsum(ind);
-    error2 = error2 + ( 1 - prec );
+    totprec = totprec + prec/length(idxsort);
 end
-err(3,1) = error2;
+err(2,1) = totprec;
+% splcomp = (spltrue>splfalse);
+% splcomp = splcomp+0;
+% precsum = sum(splcomp,1);
+% splcomp(find(splcomp==0)) = 2;
+% 
+% [i,j] = find(uint8(splcomp)==uint8(objlabel')); % i <= 155, j <= 35
+% % error2 = (numel(objlabel)-length(correct)) / numel(objlabel) * size(objlabel,1);
+% error2 = 0;
+% for ind = 1 : size(objlabel,1)
+%     tp = find(j==ind);
+%     if precsum(ind) == 0
+%         error2 = error2 + 1;
+%         continue;
+%     end
+%     prec = length(tp)/precsum(ind);
+%     error2 = error2 + ( 1 - prec );
+% end
+% err(2,1) = error2;
 
 % 2nd -> extract only 'true' one and sorting
-[~,spltruesort] = sort(spltrue, 1, 'descend') ; % 
+
 spltruesort = spltruesort(1:10,:);
 [i,j] = find(objlabel); %i <= 35, j <= 155
 
@@ -245,7 +262,7 @@ for bind = 1 : size(objlabel,1)
     correct = sum(a)/length(a);
     error3 = error3 + 1 - correct;
 end
-err(4,1) = error3; % action error
+err(3,1) = error3; % action error
 
 % err(2,1) = 
 
