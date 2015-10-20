@@ -15,7 +15,7 @@ opts.networkType = 'simplenn' ; % no dag yet. please use simplenn
 opts.batchNormalization = false ;
 opts.weightInitMethod = 'gaussian' ;
 % opts.expDir = msetting.resactrgbpath;
-opts.expDir = fullfile(msetting.resultpath,'RGB_rand_0.01_f5_mean_train3_re');
+opts.expDir = fullfile(msetting.resultpath,'RGB_pre_0.005_f5_mean_train3_5');
 [opts, varargin] = vl_argparse(opts, varargin) ;
 
 opts.sequencenum = msetting.sequencenum;
@@ -32,7 +32,7 @@ opts.train.cudnn = true ;
 opts.train.expDir = opts.expDir ;
 if ~opts.batchNormalization
     
-  opts.train.learningRate = [0.01*ones(1, 25) 0.001*ones(1,25) 0.0001*ones(1,20)];%logspace(-3, -5, 60) 
+  opts.train.learningRate = [0.01*ones(1, 5) 0.001*ones(1,25) 0.0001*ones(1,20)]*0.5;%logspace(-3, -5, 60) 
 %   opts.train.learningRate = [0.01*ones(1, 5) 0.001*ones(1,10) 0.0001*ones(1,15)]*0.1;%logspace(-3, -5, 60) ;
 %   opts.train.learningRate = logspace(-3, -6, 40) ;
 else
@@ -99,7 +99,7 @@ if msetting.extractvector %% extract all
     % make prevpathname as 1
     foldpath = annos.imgfoldpath;
     
-    for ind = 1 : length(annos.startFrame)
+    for ind = 13078 : length(annos.startFrame)
         tic;
         
         curstart = annos.startFrame(ind);
@@ -155,6 +155,13 @@ else
         msetting.meanimage = net.normalization.averageImage;
     end
 
+    
+    if 1 % override meanim to path meanim
+        msetting.meanimage = load(msetting.meanimpath);
+        %msetting.meanimage = single(im2uint8(msetting.meanimage.avgim));
+        msetting.meanimage = single(msetting.meanimage.meanim); 
+    end
+    
     net.normalization.averageImage = msetting.meanimage;
     bopts = net.normalization ;
     bopts.numThreads = opts.numFetchThreads ;

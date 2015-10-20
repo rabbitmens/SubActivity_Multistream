@@ -34,7 +34,7 @@ msetting.resobjoptipath  = fullfile(msetting.resultpath,msetting.resobjopti);
 msetting.resobjdtpath    = fullfile(msetting.resultpath,msetting.resobjdt);
 
 %% network msetting
-msetting.pretrainnetwork = ''; %'imagenet-vgg-m.mat'
+msetting.pretrainnetwork = 'imagenet-vgg-m.mat';
 
 
 %% matconvnet, vlfeat path

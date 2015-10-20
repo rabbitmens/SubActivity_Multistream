@@ -104,6 +104,12 @@ for i=1:numel(images)
   dif = simt-tosize;
   dif = uint16(dif/2);
   dif = dif+1;
+  if ~isempty(opts.averageImage)
+      offset = opts.averageImage ;
+  end
+  if size(imt) == size(offset)
+    offset = offset(dif(1):(dif(1)+tosize(1)-1),dif(2):(dif(2)+tosize(2)-1),:);
+  end
   imt = imt(dif(1):(dif(1)+tosize(1)-1),dif(2):(dif(2)+tosize(2)-1),:);
   
   % crop & flip
@@ -128,12 +134,16 @@ for i=1:numel(images)
     if flip, sx = fliplr(sx) ; end
 
     if ~isempty(opts.averageImage)
-      offset = opts.averageImage ;
+%       offset = opts.averageImage ;
       if ~isempty(opts.rgbVariance)
         offset = bsxfun(@plus, offset, reshape(opts.rgbVariance * randn(3,1), 1,1,3)) ;
       end
 %       imo(:,:,:,si) = bsxfun(@minus, imt(sy,sx,:), offset) ;
-        imo(:,:,((i-1)*3+1):i*3) = bsxfun(@minus, imt(sy,sx,:), offset(sy,sx,:)) ;
+        if size(imt) == size(offset)
+            imo(:,:,((i-1)*3+1):i*3) = bsxfun(@minus, imt(sy,sx,:), offset(sy,sx,:)) ;
+        else
+            imo(:,:,((i-1)*3+1):i*3) = bsxfun(@minus, imt(sy,sx,:), offset) ;
+        end
     else
 %       imo(:,:,:,si) = imt(sy,sx,:) ;
         imo(:,:,((i-1)*3+1):i*3) = imt(sy,sx,:) ;
